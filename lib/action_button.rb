@@ -31,7 +31,7 @@ module ActionButton
     def action_button(name, content, url_for_options = {}, options = {}, *parameters_for_url)
       options.reverse_merge!({:class => name})
       wrapper_tag = options.delete(:wrapper_tag) || :p
-      
+
       if options[:id].blank?
         id = (url_for_options[:id] || options[:number]) ? name + (url_for_options[:id] || options.delete(:number)).to_s : name
       else
@@ -39,46 +39,58 @@ module ActionButton
       end
       form_class = options.delete(:form_class) { |o| "#{options[:class]}-form" }
       form_id = options.delete(:form_id) { |o| "#{id}-form" }
-      
+
       output = form_tag(url_for_options, options.merge(:class => "#{form_class}", :id => "#{form_id}"), *parameters_for_url)
       options.delete(:method)
-      
+
       output << "\n<#{wrapper_tag}>#{options[:wrapper_class].blank? ? '' : ('class="'+options.delete(:wrapper_class)+'"')}"
       output << button_tag(id, content, 'submit', options)
       output << "</#{wrapper_tag}>\n</form>"
-      
+
       return output
     end
-    
+
     # Creates a button tag with the content passed to the content parameter inside.
     # It also sets the <tt>name</tt> attribute, and the <tt>type</tt> attribute on the tag
     # bassed on the parameters provided.
     #
-    def button_tag(name, content, type, html_options = {})
-      content_tag(:button, content, html_options.merge(:type => type, :name => name, :id => name))
+    def button_tag(name, content_or_options_with_block = nil, type = 'submit', html_options = {}, &block)
+      if block_given?
+        html_options = content_or_options_with_block if content_or_options_with_block.is_a?(Hash)
+        button_tag = content_tag(:button, capture(&block), html_options.merge(:type => type, :name => name, :id => name))
+
+        if block_called_from_erb?(block)
+          concat(button_tag)
+        else
+          button_tag
+        end
+      else
+        content_tag(:button, content_or_options_with_block, html_options.merge(:type => type, :name => name, :id => name))
+      end
     end
-    
+
+
     # Creates javascript to create a remote form event observer with the lowpro library for all
     # elements that match the CSS selector specified.
     #
     def lowpro_remote_form(selector, options = {})
       js_options = custom_remote_options(options)
-      
-      <<JS
-  Event.addBehavior({
-    '#{selector}': Remote.Form(#{js_options})
-  });
-JS
-    end
-    
-    # Creates javascript to create a remote form event observer with the jQuery lowpro library
-    # for all elements that match the CSS selector specified.
-    #
-    def jquery_lowpro_remote_form(selector, options = {})
-      "$('#{selector}').attach(Remote.Form, #{options_for_javascript(options)});\n"
-    end
 
-    private
+      <<JS
+      Event.addBehavior({
+        '#{selector}': Remote.Form(#{js_options})
+        });
+JS
+      end
+
+      # Creates javascript to create a remote form event observer with the jQuery lowpro library
+      # for all elements that match the CSS selector specified.
+      #
+      def jquery_lowpro_remote_form(selector, options = {})
+        "$('#{selector}').attach(Remote.Form, #{options_for_javascript(options)});\n"
+      end
+
+      private
 
       def custom_remote_options(options = {}) # :nodoc:
         extra_options = []
@@ -113,7 +125,7 @@ JS
 
         return js_options
       end
-    
-  end
 
-end
+    end
+
+  end
